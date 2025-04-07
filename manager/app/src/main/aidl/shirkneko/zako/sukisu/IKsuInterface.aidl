@@ -1,5 +1,5 @@
 // IKsuInterface.aidl
-package shirkneko.zako.sukisu;
+package ko.ko.kosu;
 
 import android.content.pm.PackageInfo;
 import rikka.parcelablelist.ParcelableListSlice;
