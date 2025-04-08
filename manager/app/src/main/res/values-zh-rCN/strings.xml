@@ -230,11 +230,9 @@
     <string name="kpm_version">版本</string>
     <string name="kpm_author">作者</string>
     <string name="kpm_uninstall">卸载</string>
-    <string name="kpm_uninstall_confirm">确定要卸载内核模块 %1$s 吗？</string>
     <string name="kpm_uninstall_success">卸载成功</string>
     <string name="kpm_uninstall_failed">卸载失败</string>
-    <string name="kpm_install">加载 kpm 模块</string>
-    <string name="kpm_install_confirm">确认加载吗？</string>
+    <string name="kpm_install">选择安装</string>
     <string name="kpm_install_success">加载 kpm 模块成功</string>
     <string name="kpm_install_failed">加载 kpm 模块失败</string>
     <string name="home_kpm_version">KPM 版本</string>
@@ -252,4 +250,12 @@
     <string name="home_ContributionCard_kernelsu">SukiSU Ultra 展望</string>
     <string name="home_click_to_ContributionCard_kernelsu">SukiSU Ultra 未来将会成为一个相对独立的 KSU 分支，但是依然感谢官方 KernelSU 和 MKSU 等做出的贡献</string>
     <string name="custom_settings">个性化设置</string>
+    <string name="kpm_install_mode">安装</string>
+    <string name="kpm_install_mode_load">加载</string>
+    <string name="kpm_install_mode_embed">嵌入</string>
+    <string name="kpm_install_mode_description">请选择模块安装模式：\n\n加载：临时加载模块\n嵌入：永久安装到系统</string>
+    <string name="snackbar_failed_to_check_module_file">无法检查模块文件是否存在</string>
+    <string name="confirm_uninstall_title">确认卸载</string>
+    <string name="confirm_uninstall_confirm">删除</string>
+    <string name="confirm_uninstall_dismiss">取消</string>
 </resources>

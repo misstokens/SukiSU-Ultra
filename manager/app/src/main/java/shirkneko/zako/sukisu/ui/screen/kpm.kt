@@ -29,7 +29,6 @@ import shirkneko.zako.sukisu.R
 import shirkneko.zako.sukisu.ui.component.ConfirmResult
 import shirkneko.zako.sukisu.ui.component.SearchAppBar
 import shirkneko.zako.sukisu.ui.component.rememberConfirmDialog
-import shirkneko.zako.sukisu.ui.component.rememberLoadingDialog
 import shirkneko.zako.sukisu.ui.theme.getCardColors
 import shirkneko.zako.sukisu.ui.theme.getCardElevation
 import shirkneko.zako.sukisu.ui.viewmodel.KpmViewModel
@@ -38,6 +37,8 @@ import shirkneko.zako.sukisu.ui.util.unloadKpmModule
 import java.io.File
 import androidx.core.content.edit
 import shirkneko.zako.sukisu.ui.theme.ThemeConfig
+import shirkneko.zako.sukisu.ui.component.rememberCustomDialog
+import shirkneko.zako.sukisu.ui.component.ConfirmDialogHandle
 
 /**
  * KPM 管理界面
@@ -55,7 +56,6 @@ fun KpmScreen(
     val scope = rememberCoroutineScope()
     val snackBarHost = remember { SnackbarHostState() }
     val confirmDialog = rememberConfirmDialog()
-    val loadingDialog = rememberLoadingDialog()
     val cardColor = if (!ThemeConfig.useDynamicColor) {
         ThemeConfig.currentTheme.ButtonContrast
     } else {
@@ -64,17 +64,88 @@ fun KpmScreen(
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    val kpmInstall = stringResource(R.string.kpm_install)
-    val kpmInstallConfirm = stringResource(R.string.kpm_install_confirm)
     val kpmInstallSuccess = stringResource(R.string.kpm_install_success)
     val kpmInstallFailed = stringResource(R.string.kpm_install_failed)
-    val install = stringResource(R.string.install)
     val cancel = stringResource(R.string.cancel)
-    val kpmUninstall = stringResource(R.string.kpm_uninstall)
-    val kpmUninstallConfirmTemplate = stringResource(R.string.kpm_uninstall_confirm)
     val uninstall = stringResource(R.string.uninstall)
+    val FailedtoCheckModuleFile = stringResource(R.string.snackbar_failed_to_check_module_file)
     val kpmUninstallSuccess = stringResource(R.string.kpm_uninstall_success)
     val kpmUninstallFailed = stringResource(R.string.kpm_uninstall_failed)
+    val kpmInstallMode = stringResource(R.string.kpm_install_mode)
+    val kpmInstallModeLoad = stringResource(R.string.kpm_install_mode_load)
+    val kpmInstallModeEmbed = stringResource(R.string.kpm_install_mode_embed)
+    val kpmInstallModeDescription = stringResource(R.string.kpm_install_mode_description)
+
+    var tempFileForInstall by remember { mutableStateOf<File?>(null) }
+    val installModeDialog = rememberCustomDialog { dismiss ->
+        AlertDialog(
+            onDismissRequest = {
+                dismiss()
+                tempFileForInstall?.delete()
+                tempFileForInstall = null
+            },
+            title = { Text(kpmInstallMode) },
+            text = { Text(kpmInstallModeDescription) },
+            confirmButton = {
+                Column {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                dismiss()
+                                tempFileForInstall?.let { tempFile ->
+                                    handleModuleInstall(
+                                        tempFile = tempFile,
+                                        isEmbed = false,
+                                        viewModel = viewModel,
+                                        snackBarHost = snackBarHost,
+                                        kpmInstallSuccess = kpmInstallSuccess,
+                                        kpmInstallFailed = kpmInstallFailed
+                                    )
+                                }
+                                tempFileForInstall = null
+                            }
+                        }
+                    ) {
+                        Text(kpmInstallModeLoad)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                dismiss()
+                                tempFileForInstall?.let { tempFile ->
+                                    handleModuleInstall(
+                                        tempFile = tempFile,
+                                        isEmbed = true,
+                                        viewModel = viewModel,
+                                        snackBarHost = snackBarHost,
+                                        kpmInstallSuccess = kpmInstallSuccess,
+                                        kpmInstallFailed = kpmInstallFailed
+                                    )
+                                }
+                                tempFileForInstall = null
+                            }
+                        }
+                    ) {
+                        Text(kpmInstallModeEmbed)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        dismiss()
+                        tempFileForInstall?.delete()
+                        tempFileForInstall = null
+                    }
+                ) {
+                    Text(cancel)
+                }
+            }
+        )
+    }
+
+
 
     val selectPatchLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -84,8 +155,9 @@ fun KpmScreen(
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
 
         scope.launch {
-            // 复制文件到临时目录
-            val tempFile = File(context.cacheDir, "temp_patch.kpm")
+            val fileName = uri.lastPathSegment ?: "unknown.kpm"
+            val tempFile = File(context.cacheDir, fileName)
+
             context.contentResolver.openInputStream(uri)?.use { input ->
                 tempFile.outputStream().use { output ->
                     input.copyTo(output)
@@ -101,43 +173,8 @@ fun KpmScreen(
                 return@launch
             }
 
-            val confirmResult = confirmDialog.awaitConfirm(
-                title = kpmInstall,
-                content = kpmInstallConfirm,
-                confirm = install,
-                dismiss = cancel
-            )
-
-            if (confirmResult == ConfirmResult.Confirmed) {
-                val success = loadingDialog.withLoading {
-                    try {
-                        val loadResult = loadKpmModule(tempFile.absolutePath)
-                        if (true && loadResult.startsWith("Error")) {
-                            Log.e("KsuCli", "Failed to load KPM module: $loadResult")
-                            false
-                        } else {
-                            true
-                        }
-                    } catch (e: Exception) {
-                        Log.e("KsuCli", "Failed to load KPM module: ${e.message}", e)
-                        false
-                    }
-                }
-
-                if (success) {
-                    viewModel.fetchModuleList()
-                    snackBarHost.showSnackbar(
-                        message = kpmInstallSuccess,
-                        duration = SnackbarDuration.Short
-                    )
-                } else {
-                    snackBarHost.showSnackbar(
-                        message = kpmInstallFailed,
-                        duration = SnackbarDuration.Short
-                    )
-                }
-            }
-            tempFile.delete()
+            tempFileForInstall = tempFile
+            installModeDialog.show()
         }
     }
 
@@ -234,46 +271,21 @@ fun KpmScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(viewModel.moduleList) { module ->
-                        val kpmUninstallConfirm = String.format(kpmUninstallConfirmTemplate, module.name)
                         KpmModuleItem(
                             module = module,
                             onUninstall = {
                                 scope.launch {
-                                    val confirmResult = confirmDialog.awaitConfirm(
-                                        title = kpmUninstall,
-                                        content = kpmUninstallConfirm,
-                                        confirm = uninstall,
-                                        dismiss = cancel
+                                    handleModuleUninstall(
+                                        module = module,
+                                        viewModel = viewModel,
+                                        snackBarHost = snackBarHost,
+                                        kpmUninstallSuccess = kpmUninstallSuccess,
+                                        kpmUninstallFailed = kpmUninstallFailed,
+                                        confirmDialog = confirmDialog,
+                                        FailedtoCheckModuleFile = FailedtoCheckModuleFile,
+                                        uninstall = uninstall,
+                                        cancel = cancel
                                     )
-                                    if (confirmResult == ConfirmResult.Confirmed) {
-                                        val success = loadingDialog.withLoading {
-                                            try {
-                                                val unloadResult = unloadKpmModule(module.id)
-                                                if (true && unloadResult.startsWith("Error")) {
-                                                    Log.e("KsuCli", "Failed to unload KPM module: $unloadResult")
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            } catch (e: Exception) {
-                                                Log.e("KsuCli", "Failed to unload KPM module: ${e.message}", e)
-                                                false
-                                            }
-                                        }
-
-                                        if (success) {
-                                            viewModel.fetchModuleList()
-                                            snackBarHost.showSnackbar(
-                                                message = kpmUninstallSuccess,
-                                                duration = SnackbarDuration.Short
-                                            )
-                                        } else {
-                                            snackBarHost.showSnackbar(
-                                                message = kpmUninstallFailed,
-                                                duration = SnackbarDuration.Short
-                                            )
-                                        }
-                                    }
                                 }
                             },
                             onControl = {
@@ -283,6 +295,111 @@ fun KpmScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+private suspend fun handleModuleInstall(
+    tempFile: File,
+    isEmbed: Boolean,
+    viewModel: KpmViewModel,
+    snackBarHost: SnackbarHostState,
+    kpmInstallSuccess: String,
+    kpmInstallFailed: String
+) {
+    val moduleName = tempFile.nameWithoutExtension
+
+    try {
+        if (isEmbed) {
+            val targetPath = "/data/adb/kpm/$moduleName.kpm"
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "mkdir -p /data/adb/kpm")).waitFor()
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "cp ${tempFile.absolutePath} $targetPath")).waitFor()
+        }
+
+        val loadResult = loadKpmModule(tempFile.absolutePath)
+        if (loadResult.startsWith("Error")) {
+            Log.e("KsuCli", "Failed to load KPM module: $loadResult")
+            snackBarHost.showSnackbar(
+                message = kpmInstallFailed,
+                duration = SnackbarDuration.Short
+            )
+        } else {
+            viewModel.fetchModuleList()
+            snackBarHost.showSnackbar(
+                message = kpmInstallSuccess,
+                duration = SnackbarDuration.Short
+            )
+        }
+    } catch (e: Exception) {
+        Log.e("KsuCli", "Failed to load KPM module: ${e.message}", e)
+        snackBarHost.showSnackbar(
+            message = kpmInstallFailed,
+            duration = SnackbarDuration.Short
+        )
+    }
+    tempFile.delete()
+}
+
+private suspend fun handleModuleUninstall(
+    module: KpmViewModel.ModuleInfo,
+    viewModel: KpmViewModel,
+    snackBarHost: SnackbarHostState,
+    kpmUninstallSuccess: String,
+    kpmUninstallFailed: String,
+    FailedtoCheckModuleFile: String,
+    uninstall: String,
+    cancel: String,
+    confirmDialog: ConfirmDialogHandle
+) {
+    val moduleFileName = "primary:${module.id}.kpm"
+    val moduleFilePath = "/data/adb/kpm/$moduleFileName"
+
+    val fileExists = try {
+        val result = Runtime.getRuntime().exec(arrayOf("su", "-c", "ls /data/adb/kpm/$moduleFileName")).waitFor() == 0
+        result
+    } catch (e: Exception) {
+        Log.e("KsuCli", "Failed to check module file existence: ${e.message}", e)
+        snackBarHost.showSnackbar(
+            message = FailedtoCheckModuleFile,
+            duration = SnackbarDuration.Short
+        )
+        false
+    }
+
+    val confirmResult = confirmDialog.awaitConfirm(
+        title = "将卸载以下kpm模块：\n$moduleFileName",
+        content = "The following kpm modules will be uninstalled：\n$moduleFileName",
+        confirm = uninstall,
+        dismiss = cancel
+    )
+
+    if (confirmResult == ConfirmResult.Confirmed) {
+        try {
+            val unloadResult = unloadKpmModule(module.id)
+            if (unloadResult.startsWith("Error")) {
+                Log.e("KsuCli", "Failed to unload KPM module: $unloadResult")
+                snackBarHost.showSnackbar(
+                    message = kpmUninstallFailed,
+                    duration = SnackbarDuration.Short
+                )
+                return
+            }
+
+            if (fileExists) {
+                Runtime.getRuntime().exec(arrayOf("su", "-c", "rm $moduleFilePath")).waitFor()
+            }
+
+            viewModel.fetchModuleList()
+            snackBarHost.showSnackbar(
+                message = kpmUninstallSuccess,
+                duration = SnackbarDuration.Short
+            )
+        } catch (e: Exception) {
+            Log.e("KsuCli", "Failed to unload KPM module: ${e.message}", e)
+            snackBarHost.showSnackbar(
+                message = kpmUninstallFailed,
+                duration = SnackbarDuration.Short
+            )
         }
     }
 }

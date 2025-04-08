@@ -1,5 +1,5 @@
 use anyhow::Result;
-use notify::{Watcher, RecommendedWatcher, RecursiveMode, EventKind}; 
+use notify::{Watcher, RecursiveMode};
 use std::path::Path;
 use std::fs;
 use anyhow::anyhow;
@@ -17,6 +17,7 @@ pub fn ensure_kpm_dir() -> Result<()> {
 
 pub fn start_kpm_watcher() -> Result<()> {
     ensure_kpm_dir()?;
+    load_existing_kpms()?;
 
     // 检查是否处于安全模式
     if crate::utils::is_safe_mode() {

@@ -232,11 +232,9 @@
     <string name="kpm_version">releases</string>
     <string name="kpm_author">author</string>
     <string name="kpm_uninstall">uninstallation</string>
-    <string name="kpm_uninstall_confirm">Determine the kernel module to uninstall: %1$s ？</string>
     <string name="kpm_uninstall_success">Uninstalled successfully</string>
     <string name="kpm_uninstall_failed">Failed to uninstall</string>
-    <string name="kpm_install">Load the kpm module</string>
-    <string name="kpm_install_confirm">Confirm Load?</string>
+    <string name="kpm_install">Select Installation</string>
     <string name="kpm_install_success">Load of kpm module successful</string>
     <string name="kpm_install_failed">Load of kpm module failed</string>
     <string name="kpm_args">kpm parameters</string>
@@ -255,4 +253,13 @@
     <string name="kernel_patched">Kernel not patched</string>
     <string name="kernel_not_enabled">Kernel not configured</string>
     <string name="custom_settings">Custom settings</string>
+    <string name="kpm_install_mode">install</string>
+    <string name="kpm_install_mode_load">Load</string>
+    <string name="kpm_install_mode_embed">embed</string>
+    <string name="kpm_install_mode_description">Please select the module installation mode: \n\nLoad: Temporarily load the module \nEmbedded: Permanently install into the system</string>
+    <string name="log_failed_to_check_module_file">Failed to check module file existence</string>
+    <string name="snackbar_failed_to_check_module_file">Unable to check if module file exists</string>
+    <string name="confirm_uninstall_title">Confirm uninstallation</string>
+    <string name="confirm_uninstall_confirm">removing</string>
+    <string name="confirm_uninstall_dismiss">abolish</string>
 </resources>
