@@ -1,4 +1,4 @@
-package zako.zako.zako;
+package com.tencent.music;
 
 import android.content.pm.PackageInfo;
 import rikka.parcelablelist.ParcelableListSlice;
